@@ -1,0 +1,45 @@
+name: test
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test-windows-x64:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        rust: [stable]
+    env:
+      VCPKGRS_DYNAMIC: 1
+    steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+      - name: Environment
+        run: |
+          $Properties = 'Caption', 'CSName', 'Version', 'BuildType', 'OSArchitecture'
+          Get-CimInstance Win32_OperatingSystem | Select-Object $Properties | Format-Table -AutoSize
+          cargo --version
+          $PsVersionTable
+      - name: Install build and tests prequisites
+        run: |
+          # vcpkg build prequisites
+          (Get-Command vcpkg).Path
+          Expand-Archive -PassThru -Force -LiteralPath .\ci\windows\vcpkg_installed.zip -DestinationPath C:\vcpkg\
+          Get-ChildItem C:\vcpkg\installed
+          vcpkg integrate install
+      - name: Run Tests units
+        run: |
+          cargo test
+
